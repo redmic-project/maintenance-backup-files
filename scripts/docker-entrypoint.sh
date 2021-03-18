@@ -1,197 +1,184 @@
 #!/bin/bash
 
-export PGPASSFILE="${POSTGRES_PASS_FILE}"
+function check_mandatory_variables() {
 
-NOW_DATE=$(date +%Y-%m-%d_%H_%M_%S)
-ZIP_FILENAME="${NOW_DATE}-backup.tar.gz"
-DUMP_FILENAME="${DUMP_FILENAME:-db.dump}"
-
-TIMEFORMAT="%R"
-NO_ERRORS=1
-
-: ${PUSHGATEWAY_JOB:=${POSTGRES_HOSTNAME}}
-
-
-function check_constraint_variable() {
-	if [ -z "${BUCKET_BACKUP_DB}" ]
+	if [ -z "${UPLOAD_BUCKET}" ]
 	then
-		echo "ERROR! Variable BUCKET_BACKUP_DB is empty"
-		NO_ERRORS=0
+		echo "[ERROR] 'UPLOAD_BUCKET' environment variable is empty"
+		exit 1
 	fi
 
 	if [ -z "${AWS_ACCESS_KEY_ID}" ]
 	then
-		echo "ERROR! Variable AWS_ACCESS_KEY_ID is empty"
-		NO_ERRORS=0
+		echo "[ERROR] 'AWS_ACCESS_KEY_ID' environment variable is empty"
+		exit 1
 	fi
 
 	if [ -z "${AWS_SECRET_ACCESS_KEY}" ]
 	then
-		echo "ERROR! Variable AWS_SECRET_ACCESS_KEY is empty"
-		NO_ERRORS=0
+		echo "[ERROR] 'AWS_SECRET_ACCESS_KEY' environment variable is empty"
+		exit 1
 	fi
-}
 
-
-function create_pgpass() {
-
-	echo "${POSTGRES_HOSTNAME}:${POSTGRES_PORT}:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > ${PGPASSFILE}
-	chmod 0600 ${PGPASSFILE}
-}
-
-
-function size_file() {
-	echo "$(wc -c <"${1}")"
-}
-
-
-function dump_all() {
-
-	echo "Creating database backup"
-	local start_seconds=${SECONDS}
-
-	if pg_dumpall -h ${POSTGRES_HOSTNAME} -U ${POSTGRES_USER} --clean > ${POSTGRES_DUMP_PATH}/${DUMP_FILENAME}
+	if [ -z "${PATHS_TO_BACKUP}" ]
 	then
-		DUMP_SIZE=$( size_file "${POSTGRES_DUMP_PATH}/${DUMP_FILENAME}" )
-		if [ ${DUMP_SIZE} -eq 0 ]
-		then
-			echo "ERROR created empty backup"
-			NO_ERRORS=0
-		else
-			DUMP_DURATION_SECONDS=$(( SECONDS - start_seconds ))
-			echo "Backup created"
-			echo "Uncompress backup size (bytes): ${DUMP_SIZE}"
-			echo "Backup execution time (s): ${DUMP_DURATION_SECONDS}"
-		fi
-	else
-		echo "ERROR creating backup"
-		NO_ERRORS=0
+		echo "[ERROR] 'PATHS_TO_BACKUP' environment variable is empty"
+		exit 1
 	fi
 }
 
 
-function compress() {
+function get_size() {
 
-	WORKDIR=$(pwd)
-	cd ${POSTGRES_DUMP_PATH}
-
-	echo "Compressing backup"
-	local start_seconds=${SECONDS}
-
-	tar cvzf ${ZIP_FILENAME} ${DUMP_FILENAME}
-
-	COMPRESS_DURATION_SECONDS=$(( SECONDS - start_seconds ))
-	COMPRESS_SIZE=$( size_file "${ZIP_FILENAME}" )
-
-	echo "Backup compressed"
-	echo "Compress backup size (bytes): ${COMPRESS_SIZE}"
-	echo "Compress execution time (s): ${COMPRESS_DURATION_SECONDS}"
-
-	cd ${WORKDIR}
+	if [ -d ${1} ]
+	then
+		echo "$(du -s \"${1}\" | cut -f 1)"
+	else
+		echo "$(wc -c <"${1}")"
+	fi
 }
 
 
-function upload_s3() {
+function check_paths_to_backup() {
 
-	local start_seconds=${SECONDS}
+	echo "Checking paths to backup"
 
+	totalSize=0
+	for pathToBackup in ${PATHS_TO_BACKUP}
+	do
+		fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
+		echo "Checking path ${fullPathToBackup}"
+		if [ [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ] ]
+		then
+			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
+			exit 1;
+		fi
+		pathSize=$(get_size "${fullPathToBackup}")
+		totalSize=$(( totalSize + pathSize ))
+		echo "Uncompressed size (bytes): ${pathSize}"
+	done
+
+	echo "All paths checked"
+	echo "Total uncompressed size (bytes): ${totalSize}"
+}
+
+
+function create_compressed() {
+
+	cd ${WORK_PATH}
+
+	echo "Creating backup"
+	local startSeconds=${SECONDS}
+
+	tar -czf ${compressedFilename} ${PATHS_TO_BACKUP}
+
+	compressDurationSeconds=$(( SECONDS - startSeconds ))
+	compressedSize=$(get_size "${compressedFilename}")
+
+	echo "Backup created"
+	echo "Compressed size (bytes): ${compressedSize}"
+	echo "Compress duration (s): ${compressDurationSeconds}"
+
+	cd - > /dev/null
+}
+
+
+function upload_compressed() {
+
+	local startSeconds=${SECONDS}
+
+	echo -n "Uploading backup to "
 	if [ -z ${UPLOAD_ENDPOINT_URL} ]
 	then
-		echo "Uploading backup to S3"
+		echo "S3"
 	else
-		echo "Uploading backup to ${UPLOAD_ENDPOINT_URL}"
+		echo "${UPLOAD_ENDPOINT_URL}"
 		endpointUrlOverride="--endpoint-url ${UPLOAD_ENDPOINT_URL}"
 	fi
 
-	if aws ${endpointUrlOverride} s3 cp ${POSTGRES_DUMP_PATH}/${ZIP_FILENAME} s3://${BUCKET_BACKUP_DB} --only-show-errors
+	if aws ${endpointUrlOverride} s3 cp ${WORK_PATH}/${compressedFilename} s3://${UPLOAD_BUCKET} --only-show-errors
 	then
-		UPLOAD_DURATION_SECONDS=$(( SECONDS - start_seconds ))
-		echo "Uploaded backup"
-		echo "Upload execution time (s): ${UPLOAD_DURATION_SECONDS}"
+		uploadDurationSeconds=$(( SECONDS - startSeconds ))
+		echo "Backup uploaded"
+		echo "Upload duration (s): ${uploadDurationSeconds}"
 	else
-		echo "Backup upload failed"
-		NO_ERRORS=0
+		echo "[ERROR] Backup upload failed"
+		exit 1
 	fi
 }
 
 
-function clean_dump() {
+function clean_work_path() {
 
 	echo "Cleaning temporary files"
-	rm -f ${POSTGRES_DUMP_PATH}/*
+	rm -f ${WORK_PATH}/*
+}
+
+
+function update_metrics() {
+
+	if [ -z "${PUSHGATEWAY_HOST}" ]
+	then
+		echo "[WARN] 'PUSHGATEWAY_HOST' environment variable not defined, metrics cannot be published"
+		exit 0
+	fi
+
+	if [ -z "${PUSHGATEWAY_JOB}" ]
+	then
+		echo "[ERROR] 'PUSHGATEWAY_JOB' environment variable is empty"
+		exit 1
+	fi
+
+	PUSHGATEWAY_LABEL=${PUSHGATEWAY_LABEL:-${PUSHGATEWAY_JOB}}
+	createdDateSeconds=$(date +%s)
+
+	push_metrics
 }
 
 
 function push_metrics() {
 
-	CREATED_DATE_SECONDS=$(date +%s)
-
 # No indent
 cat <<EOF | curl -s --data-binary @- ${PUSHGATEWAY_HOST}/metrics/job/${PUSHGATEWAY_JOB}
-# HELP backup_db outcome of the backup database job (0=failed, 1=success).
-# TYPE backup_db gauge
-backup_db{label="${POSTGRES_HOSTNAME}"} ${NO_ERRORS}
 # HELP backup_duration_seconds duration of each stage execution in seconds.
 # TYPE backup_duration_seconds gauge
-backup_duration_seconds{label="${POSTGRES_HOSTNAME}",stage="dump"} ${DUMP_DURATION_SECONDS:-0}
-backup_duration_seconds{label="${POSTGRES_HOSTNAME}",stage="compress"} ${COMPRESS_DURATION_SECONDS:-0}
-backup_duration_seconds{label="${POSTGRES_HOSTNAME}",stage="upload"} ${UPLOAD_DURATION_SECONDS:-0}
+backup_duration_seconds{label="${PUSHGATEWAY_LABEL}",stage="compress"} ${compressDurationSeconds:-0}
+backup_duration_seconds{label="${PUSHGATEWAY_LABEL}",stage="upload"} ${uploadDurationSeconds:-0}
 # HELP backup_duration_seconds_total duration of the script execution in seconds.
 # TYPE backup_duration_seconds_total gauge
-backup_duration_seconds_total{label="${POSTGRES_HOSTNAME}"} ${BACKUP_DURATION_SECONDS:-0}
+backup_duration_seconds_total{label="${PUSHGATEWAY_LABEL}"} ${backupDurationSeconds:-0}
 # HELP backup_size size of backup in bytes.
 # TYPE backup_size gauge
-backup_size_bytes{label="${POSTGRES_HOSTNAME}"} ${COMPRESS_SIZE:-0}
+backup_size_bytes{label="${PUSHGATEWAY_LABEL}"} ${compressedSize:-0}
 # HELP backup_created_date_seconds created date in seconds.
 # TYPE backup_created_date_seconds gauge
-backup_created_date_seconds{label="${POSTGRES_HOSTNAME}"} ${CREATED_DATE_SECONDS}
+backup_created_date_seconds{label="${PUSHGATEWAY_LABEL}"} ${createdDateSeconds}
 EOF
-
 }
 
 
 function main() {
 
-	local start_seconds=${SECONDS}
+	local startSeconds=${SECONDS}
 
-	check_constraint_variable
+	check_mandatory_variables
 
-	if [ ${NO_ERRORS} -eq 1 ]
-	then
-		mkdir -p ${POSTGRES_DUMP_PATH}
+	mkdir -p ${WORK_PATH}
 
-		# Create pgpass file if not exists
-		if [ ! -f ${PGPASSFILE} ]
-		then
-			create_pgpass
-		fi
+	check_paths_to_backup
 
-		dump_all
+	nowDate=$(date +%Y-%m-%d_%H-%M-%S)
+	compressedFilename="${nowDate}-backup.tar.gz"
 
-		if [ ${NO_ERRORS} -eq 1 ]
-		then
-			compress
-			upload_s3
-			clean_dump
-		fi
-	fi
+	create_compressed
+	upload_compressed
+	clean_work_path
 
-	BACKUP_DURATION_SECONDS=$(( SECONDS - start_seconds ))
+	backupDurationSeconds=$(( SECONDS - startSeconds ))
 
-	if [ -z "${PUSHGATEWAY_HOST}" ]
-	then
-		echo "Warning, 'PUSHGATEWAY_HOST' environment variable not defined, metrics cannot be published"
-		exit 0
-	fi
+	update_metrics
 
-	push_metrics
+	echo "Backup process ended successfully"
 }
 
 main
-
-if [ ${NO_ERRORS} -eq 0 ]
-then
-	exit 1;
-else
-	exit 0;
-fi
