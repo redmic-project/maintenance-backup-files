@@ -81,7 +81,7 @@ function create_compressed() {
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
 	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
 
-	echo "Backup created"
+	echo "Backup created: '${compressedFilename}'"
 	echo "Compressed size (bytes): ${compressedSize}"
 	echo "Compress duration (s): ${compressDurationSeconds}"
 
