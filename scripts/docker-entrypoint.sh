@@ -19,12 +19,6 @@ function check_mandatory_variables() {
 		echo "[ERROR] 'AWS_SECRET_ACCESS_KEY' environment variable is empty"
 		exit 1
 	fi
-
-	if [ -z "${PATHS_TO_BACKUP}" ]
-	then
-		echo "[ERROR] 'PATHS_TO_BACKUP' environment variable is empty"
-		exit 1
-	fi
 }
 
 
@@ -47,7 +41,7 @@ function check_paths_to_backup() {
 	for pathToBackup in ${PATHS_TO_BACKUP}
 	do
 		fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
-		echo "Checking path ${fullPathToBackup}"
+		echo "Checking path '${fullPathToBackup}'"
 		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
 			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
