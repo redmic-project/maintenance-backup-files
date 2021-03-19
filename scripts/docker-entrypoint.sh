@@ -41,12 +41,18 @@ function check_paths_to_backup() {
 	then
 		echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, using root backup path ('${BACKUP_PATH}') instead"
 		PATHS_TO_BACKUP="${BACKUP_PATH}"
+		emptyPaths=1
 	fi
 
 	totalSize=0
 	for pathToBackup in ${PATHS_TO_BACKUP}
 	do
-		fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
+		if [ ${emptyPaths} -eq 1 ]
+		then
+			fullPathToBackup="${pathToBackup}"
+		else
+			fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
+		fi
 		echo "Checking path '${fullPathToBackup}'"
 		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
