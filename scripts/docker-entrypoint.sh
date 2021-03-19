@@ -19,12 +19,6 @@ function check_mandatory_variables() {
 		echo "[ERROR] 'AWS_SECRET_ACCESS_KEY' environment variable is empty"
 		exit 1
 	fi
-
-	if [ -z "${PATHS_TO_BACKUP}" ]
-	then
-		echo "[ERROR] 'PATHS_TO_BACKUP' environment variable is empty"
-		exit 1
-	fi
 }
 
 
@@ -32,7 +26,7 @@ function get_size() {
 
 	if [ -d ${1} ]
 	then
-		echo "$(du -s \"${1}\" | cut -f 1)"
+		echo "$(du -s "${1}" | cut -f 1)"
 	else
 		echo "$(wc -c <"${1}")"
 	fi
@@ -43,15 +37,27 @@ function check_paths_to_backup() {
 
 	echo "Checking paths to backup"
 
+	if [ -z "${PATHS_TO_BACKUP}" ]
+	then
+		echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, using root backup path ('${BACKUP_PATH}') instead"
+		PATHS_TO_BACKUP="${BACKUP_PATH}"
+		emptyPaths=1
+	fi
+
 	totalSize=0
 	for pathToBackup in ${PATHS_TO_BACKUP}
 	do
-		fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
-		echo "Checking path ${fullPathToBackup}"
-		if [ [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ] ]
+		if [ ${emptyPaths} -eq 1 ]
+		then
+			fullPathToBackup="${pathToBackup}"
+		else
+			fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
+		fi
+		echo "Checking path '${fullPathToBackup}'"
+		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
 			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
-			exit 1;
+			exit 1
 		fi
 		pathSize=$(get_size "${fullPathToBackup}")
 		totalSize=$(( totalSize + pathSize ))
@@ -65,17 +71,17 @@ function check_paths_to_backup() {
 
 function create_compressed() {
 
-	cd ${WORK_PATH}
+	cd ${BACKUP_PATH}
 
 	echo "Creating backup"
 	local startSeconds=${SECONDS}
 
-	tar -czf ${compressedFilename} ${PATHS_TO_BACKUP}
+	tar -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
-	compressedSize=$(get_size "${compressedFilename}")
+	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
 
-	echo "Backup created"
+	echo "Backup created: '${compressedFilename}'"
 	echo "Compressed size (bytes): ${compressedSize}"
 	echo "Compress duration (s): ${compressDurationSeconds}"
 

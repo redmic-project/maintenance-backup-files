@@ -20,6 +20,7 @@ Also sends metrics to Prometheus through Pushgateway.
 
 |         Name          |                   Description                   |        Default       |
 |-----------------------|-------------------------------------------------|----------------------|
+| BACKUP_VOL_NAME       | Docker volume name to mount as source           |                      |
 | BACKUP_PATH           | Root path to find paths to backup               | /backup              |
 | PATHS_TO_BACKUP       | Paths to include in backup (separated by space) |                      |
 | WORK_PATH             | Temporal path for working                       | /tmp/backup          |
