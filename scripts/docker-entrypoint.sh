@@ -73,7 +73,7 @@ function create_compressed() {
 	tar -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
-	compressedSize=$(get_size "${compressedFilename}")
+	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
 
 	echo "Backup created"
 	echo "Compressed size (bytes): ${compressedSize}"
