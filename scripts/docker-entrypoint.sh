@@ -48,10 +48,10 @@ function check_paths_to_backup() {
 	do
 		fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
 		echo "Checking path ${fullPathToBackup}"
-		if [ [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ] ]
+		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
 			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
-			exit 1;
+			exit 1
 		fi
 		pathSize=$(get_size "${fullPathToBackup}")
 		totalSize=$(( totalSize + pathSize ))
