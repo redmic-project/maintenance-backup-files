@@ -65,12 +65,12 @@ function check_paths_to_backup() {
 
 function create_compressed() {
 
-	cd ${WORK_PATH}
+	cd ${BACKUP_PATH}
 
 	echo "Creating backup"
 	local startSeconds=${SECONDS}
 
-	tar -czf ${compressedFilename} ${PATHS_TO_BACKUP}
+	tar -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
 	compressedSize=$(get_size "${compressedFilename}")
