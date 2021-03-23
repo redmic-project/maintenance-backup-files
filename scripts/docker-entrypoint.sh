@@ -26,7 +26,7 @@ function get_size() {
 
 	if [ -d ${1} ]
 	then
-		echo "$(du -s "${1}" | cut -f 1)"
+		echo "$(du -bs "${1}" | cut -f 1)"
 	else
 		echo "$(wc -c <"${1}")"
 	fi
@@ -47,7 +47,7 @@ function check_paths_to_backup() {
 	totalSize=0
 	for pathToBackup in ${PATHS_TO_BACKUP}
 	do
-		if [ ${emptyPaths} -eq 1 ]
+		if [ "${emptyPaths}" -eq 1 ]
 		then
 			fullPathToBackup="${pathToBackup}"
 		else
