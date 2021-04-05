@@ -26,7 +26,8 @@ function get_size() {
 
 	if [ -d ${1} ]
 	then
-		echo "$(du -bs "${1}" | cut -f 1)"
+		dirSize="$(du -s "${1}" | cut -f 1)"
+		echo "$(( dirSize * 1000 ))"
 	else
 		echo "$(wc -c <"${1}")"
 	fi
