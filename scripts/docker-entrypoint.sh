@@ -43,6 +43,8 @@ function check_paths_to_backup() {
 		echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, using root backup path ('${BACKUP_PATH}') instead"
 		PATHS_TO_BACKUP="${BACKUP_PATH}"
 		emptyPaths=1
+	else
+		emptyPaths=0
 	fi
 
 	totalSize=0
