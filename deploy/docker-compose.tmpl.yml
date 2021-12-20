@@ -16,6 +16,7 @@ services:
     environment:
       BACKUP_PATH:
       PATHS_TO_BACKUP:
+      PATHS_TO_EXCLUDE:
       WORK_PATH:
       UPLOAD_BUCKET:
       UPLOAD_ENDPOINT_URL:

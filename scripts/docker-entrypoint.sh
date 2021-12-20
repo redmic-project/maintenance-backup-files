@@ -79,7 +79,16 @@ function create_compressed() {
 	echo "Creating backup"
 	local startSeconds=${SECONDS}
 
-	tar -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}
+	excludeParams=""
+	if [ ! -z "${PATHS_TO_EXCLUDE}" ]
+	then
+		for pathToExclude in ${PATHS_TO_EXCLUDE}
+		do
+			excludeParams="${excludeParams} --exclude ${pathToExclude}"
+		done
+	fi
+
+	tar -czf ${WORK_PATH}/${compressedFilename} ${excludeParams} ${PATHS_TO_BACKUP}
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
 	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
