@@ -71,6 +71,18 @@ function check_paths_to_backup() {
 	echo "Total uncompressed size (bytes): ${totalSize}"
 }
 
+function set_paths_to_exclude() {
+
+	excludeParams=""
+	if [ ! -z "${PATHS_TO_EXCLUDE}" ]
+	then
+		echo "Excluding paths: ${PATHS_TO_EXCLUDE}"
+		for pathToExclude in ${PATHS_TO_EXCLUDE}
+		do
+			excludeParams="${excludeParams} --exclude ${pathToExclude}"
+		done
+	fi
+}
 
 function create_compressed() {
 
@@ -79,16 +91,9 @@ function create_compressed() {
 	echo "Creating backup"
 	local startSeconds=${SECONDS}
 
-	excludeParams=""
-	if [ ! -z "${PATHS_TO_EXCLUDE}" ]
-	then
-		for pathToExclude in ${PATHS_TO_EXCLUDE}
-		do
-			excludeParams="${excludeParams} --exclude ${pathToExclude}"
-		done
-	fi
-
-	tar -czf ${WORK_PATH}/${compressedFilename} ${excludeParams} ${PATHS_TO_BACKUP}
+	compressCmd="tar -czf ${WORK_PATH}/${compressedFilename} ${excludeParams} ${PATHS_TO_BACKUP}"
+	echo "Generated compress command: ${compressCmd}"
+	eval "${compressCmd}"
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
 	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
@@ -184,6 +189,7 @@ function main() {
 	mkdir -p ${WORK_PATH}
 
 	check_paths_to_backup
+	set_paths_to_exclude
 
 	nowDate=$(date +%Y-%m-%d_%H-%M-%S)
 	compressedFilename="${nowDate}-backup.tar.gz"
