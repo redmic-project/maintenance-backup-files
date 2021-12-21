@@ -18,21 +18,22 @@ Also sends metrics to Prometheus through Pushgateway.
 
 ## Variables
 
-|         Name          |                   Description                   |        Default       |
-|-----------------------|-------------------------------------------------|----------------------|
-| BACKUP_VOL_NAME       | Docker volume name to mount as source           |                      |
-| BACKUP_PATH           | Root path to find paths to backup               | /backup              |
-| PATHS_TO_BACKUP       | Paths to include in backup (separated by space) |                      |
-| WORK_PATH             | Temporal path for working                       | /tmp/backup          |
-| UPLOAD_BUCKET         | Bucket name for uploads                         | backup-files         |
-| UPLOAD_ENDPOINT_URL   | URL for uploads (S3-compatible)                 |                      |
-| AWS_ACCESS_KEY_ID     | AWS credentials                                 | changeme             |
-| AWS_SECRET_ACCESS_KEY | AWS credentials                                 | changeme             |
-| AWS_DEFAULT_REGION    | AWS region                                      | eu-west-1            |
-| AWS_OUTPUT            | AWS output format                               | json                 |
-| PUSHGATEWAY_HOST      | Pushgateway hostname                            | pushgateway:9091     |
-| PUSHGATEWAY_JOB       | Pushgateway job name                            | backup-files         |
-| PUSHGATEWAY_LABEL     | Pushgateway label value                         | ${PUSHGATEWAY_JOB}   |
+|         Name          |                    Description                    |        Default       |
+|-----------------------|---------------------------------------------------|----------------------|
+| BACKUP_VOL_NAME       | Docker volume name to mount as source             |                      |
+| BACKUP_PATH           | Root path to find paths to backup                 | /backup              |
+| PATHS_TO_BACKUP       | Paths to include in backup (separated by space)   |                      |
+| PATHS_TO_EXCLUDE      | Paths to exclude from backup (separated by space) |                      |
+| WORK_PATH             | Temporal path for working                         | /tmp/backup          |
+| UPLOAD_BUCKET         | Bucket name for uploads                           | backup-files         |
+| UPLOAD_ENDPOINT_URL   | URL for uploads (S3-compatible)                   |                      |
+| AWS_ACCESS_KEY_ID     | AWS credentials                                   | changeme             |
+| AWS_SECRET_ACCESS_KEY | AWS credentials                                   | changeme             |
+| AWS_DEFAULT_REGION    | AWS region                                        | eu-west-1            |
+| AWS_OUTPUT            | AWS output format                                 | json                 |
+| PUSHGATEWAY_HOST      | Pushgateway hostname                              | pushgateway:9091     |
+| PUSHGATEWAY_JOB       | Pushgateway job name                              | backup-files         |
+| PUSHGATEWAY_LABEL     | Pushgateway label value                           | ${PUSHGATEWAY_JOB}   |
 
 ## Metrics
 

@@ -21,7 +21,6 @@ function check_mandatory_variables() {
 	fi
 }
 
-
 function get_size() {
 
 	if [ -d ${1} ]
@@ -33,15 +32,14 @@ function get_size() {
 	fi
 }
 
-
 function check_paths_to_backup() {
 
-	echo "Checking paths to backup"
+	echo "[INFO] Checking paths to backup"
 
 	if [ -z "${PATHS_TO_BACKUP}" ]
 	then
 		echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, using root backup path ('${BACKUP_PATH}') instead"
-		PATHS_TO_BACKUP="${BACKUP_PATH}"
+		PATHS_TO_BACKUP="."
 		emptyPaths=1
 	else
 		emptyPaths=0
@@ -56,7 +54,7 @@ function check_paths_to_backup() {
 		else
 			fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
 		fi
-		echo "Checking path '${fullPathToBackup}'"
+		echo "[INFO] Checking path '${fullPathToBackup}'"
 		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
 			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
@@ -64,39 +62,55 @@ function check_paths_to_backup() {
 		fi
 		pathSize=$(get_size "${fullPathToBackup}")
 		totalSize=$(( totalSize + pathSize ))
-		echo "Uncompressed size (bytes): ${pathSize}"
+		echo "[INFO] Uncompressed size (bytes): ${pathSize}"
 	done
 
-	echo "All paths checked"
-	echo "Total uncompressed size (bytes): ${totalSize}"
+	echo "[INFO] All paths checked"
+	echo "[INFO] Total uncompressed size (bytes): ${totalSize}"
 }
 
+function set_paths_to_exclude() {
+
+	excludeParams=""
+
+	if [ -z "${PATHS_TO_EXCLUDE}" ]
+	then
+		echo "[WARN] 'PATHS_TO_EXCLUDE' environment variable is empty, avoiding exclusions"
+	else
+		echo "[INFO] Excluding paths: ${PATHS_TO_EXCLUDE}"
+		for pathToExclude in ${PATHS_TO_EXCLUDE}
+		do
+			excludeParams="${excludeParams} --exclude ${pathToExclude}"
+		done
+	fi
+}
 
 function create_compressed() {
 
 	cd ${BACKUP_PATH}
 
-	echo "Creating backup"
+	echo "[INFO] Creating backup"
 	local startSeconds=${SECONDS}
 
-	tar -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}
+	compressCmd="tar ${excludeParams} -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}"
+	echo "[INFO] Generated compress command: ${compressCmd}"
+	eval "${compressCmd}"
 
 	compressDurationSeconds=$(( SECONDS - startSeconds ))
 	compressedSize=$(get_size "${WORK_PATH}/${compressedFilename}")
 
-	echo "Backup created: '${compressedFilename}'"
-	echo "Compressed size (bytes): ${compressedSize}"
-	echo "Compress duration (s): ${compressDurationSeconds}"
+	echo "[INFO] Backup created: '${compressedFilename}'"
+	echo "[INFO] Compressed size (bytes): ${compressedSize}"
+	echo "[INFO] Compress duration (s): ${compressDurationSeconds}"
 
 	cd - > /dev/null
 }
-
 
 function upload_compressed() {
 
 	local startSeconds=${SECONDS}
 
-	echo -n "Uploading backup to "
+	echo -n "[INFO] Uploading backup to "
 	if [ -z ${UPLOAD_ENDPOINT_URL} ]
 	then
 		echo "S3"
@@ -108,21 +122,19 @@ function upload_compressed() {
 	if aws ${endpointUrlOverride} s3 cp ${WORK_PATH}/${compressedFilename} s3://${UPLOAD_BUCKET} --only-show-errors
 	then
 		uploadDurationSeconds=$(( SECONDS - startSeconds ))
-		echo "Backup uploaded"
-		echo "Upload duration (s): ${uploadDurationSeconds}"
+		echo "[INFO] Backup uploaded"
+		echo "[INFO] Upload duration (s): ${uploadDurationSeconds}"
 	else
 		echo "[ERROR] Backup upload failed"
 		exit 1
 	fi
 }
 
-
 function clean_work_path() {
 
-	echo "Cleaning temporary files"
+	echo "[INFO] Cleaning temporary files"
 	rm -f ${WORK_PATH}/*
 }
-
 
 function update_metrics() {
 
@@ -144,7 +156,6 @@ function update_metrics() {
 	push_metrics
 }
 
-
 function push_metrics() {
 
 # No indent
@@ -165,7 +176,6 @@ backup_created_date_seconds{label="${PUSHGATEWAY_LABEL}"} ${createdDateSeconds}
 EOF
 }
 
-
 function main() {
 
 	local startSeconds=${SECONDS}
@@ -179,6 +189,7 @@ function main() {
 	nowDate=$(date +%Y-%m-%d_%H-%M-%S)
 	compressedFilename="${nowDate}-backup.tar.gz"
 
+	set_paths_to_exclude
 	create_compressed
 	upload_compressed
 	clean_work_path
@@ -187,7 +198,7 @@ function main() {
 
 	update_metrics
 
-	echo "Backup process ended successfully"
+	echo "[INFO] Backup process ended successfully"
 }
 
 main
