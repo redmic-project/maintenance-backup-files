@@ -5,7 +5,7 @@ FROM alpine:${ALPINE_IMAGE_TAG}
 LABEL maintainer="info@redmic.es"
 
 ARG BACKUP_PATH=/backup \
-	CURL_VERSION=7.74.0-r1 \
+	CURL_VERSION=7.79.1-r0 \
 	BASH_VERSION=5.1.0-r0 \
 	GLIBC_VERSION=2.33-r0 \
 	AWS_CLI_VERSION=2.0.30
