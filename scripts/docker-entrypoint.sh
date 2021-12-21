@@ -78,7 +78,7 @@ function set_paths_to_exclude() {
 		echo "[INFO] Excluding paths: ${PATHS_TO_EXCLUDE}"
 		for pathToExclude in ${PATHS_TO_EXCLUDE}
 		do
-			excludeParams="${excludeParams} --exclude ${pathToExclude}"
+			excludeParams="${excludeParams} --exclude='${pathToExclude}'"
 		done
 	fi
 }
