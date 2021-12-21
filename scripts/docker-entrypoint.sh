@@ -36,32 +36,30 @@ function check_paths_to_backup() {
 
 	echo "[INFO] Checking paths to backup"
 
-	if [ -z "${PATHS_TO_BACKUP}" ]
-	then
-		echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, using root backup path ('${BACKUP_PATH}') instead"
-		PATHS_TO_BACKUP="."
-		emptyPaths=1
-	else
-		emptyPaths=0
-	fi
-
 	totalSize=0
-	for pathToBackup in ${PATHS_TO_BACKUP}
+
+	for pathToBackup in ${PATHS_TO_BACKUP:-${BACKUP_PATH}}
 	do
-		if [ "${emptyPaths}" -eq 1 ]
+		fullPathToBackup="${BACKUP_PATH}"
+
+		if [ -z "${PATHS_TO_BACKUP}" ]
 		then
-			fullPathToBackup="${pathToBackup}"
+			echo "[WARN] 'PATHS_TO_BACKUP' environment variable is empty, including full content of '${BACKUP_PATH}' in backup"
 		else
-			fullPathToBackup="${BACKUP_PATH}/${pathToBackup}"
+			fullPathToBackup="${fullPathToBackup}/${pathToBackup}"
 		fi
+
 		echo "[INFO] Checking path '${fullPathToBackup}'"
+
 		if [ ! -f ${fullPathToBackup} ] && [ ! -d ${fullPathToBackup} ]
 		then
 			echo "[ERROR] File or directory not found at '${fullPathToBackup}'"
 			exit 1
 		fi
+
 		pathSize=$(get_size "${fullPathToBackup}")
 		totalSize=$(( totalSize + pathSize ))
+
 		echo "[INFO] Uncompressed size (bytes): ${pathSize}"
 	done
 
@@ -92,7 +90,7 @@ function create_compressed() {
 	echo "[INFO] Creating backup"
 	local startSeconds=${SECONDS}
 
-	compressCmd="tar ${excludeParams} -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP}"
+	compressCmd="tar ${excludeParams} -czf ${WORK_PATH}/${compressedFilename} ${PATHS_TO_BACKUP:-.}"
 	echo "[INFO] Generated compress command: ${compressCmd}"
 	eval "${compressCmd}"
 
