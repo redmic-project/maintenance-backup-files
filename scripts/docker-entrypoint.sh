@@ -104,6 +104,12 @@ function create_compressed() {
 	cd - > /dev/null
 }
 
+function clean_work_path() {
+
+	echo "[INFO] Cleaning temporary files"
+	rm -f ${WORK_PATH}/*
+}
+
 function upload_compressed() {
 
 	local startSeconds=${SECONDS}
@@ -124,14 +130,9 @@ function upload_compressed() {
 		echo "[INFO] Upload duration (s): ${uploadDurationSeconds}"
 	else
 		echo "[ERROR] Backup upload failed"
+		clean_work_path
 		exit 1
 	fi
-}
-
-function clean_work_path() {
-
-	echo "[INFO] Cleaning temporary files"
-	rm -f ${WORK_PATH}/*
 }
 
 function update_metrics() {
@@ -144,8 +145,8 @@ function update_metrics() {
 
 	if [ -z "${PUSHGATEWAY_JOB}" ]
 	then
-		echo "[ERROR] 'PUSHGATEWAY_JOB' environment variable is empty"
-		exit 1
+		PUSHGATEWAY_JOB=${UPLOAD_BUCKET}
+		echo "[WARN] 'PUSHGATEWAY_JOB' environment variable was empty, getting value from 'UPLOAD_BUCKET' variable"
 	fi
 
 	PUSHGATEWAY_LABEL=${PUSHGATEWAY_LABEL:-${PUSHGATEWAY_JOB}}
