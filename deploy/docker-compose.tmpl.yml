@@ -1,18 +1,8 @@
-version: '3.5'
+version: '3.9'
 
 services:
   backup-files:
     image: ${BACKUP_FILES_IMAGE_NAME:-registry.gitlab.com/redmic-project/maintenance/backup-files}:${BACKUP_FILES_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: ${BACKUP_FILES_DOCKERFILE:-Dockerfile}
-      args:
-        ALPINE_IMAGE_TAG:
-        CURL_VERSION:
-        BASH_VERSION:
-        GLIBC_VERSION:
-        AWS_CLI_VERSION:
-        BACKUP_PATH:
     environment:
       BACKUP_PATH:
       PATHS_TO_BACKUP:

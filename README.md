@@ -32,7 +32,7 @@ Also sends metrics to Prometheus through Pushgateway.
 | AWS_DEFAULT_REGION    | AWS region                                        | eu-west-1            |
 | AWS_OUTPUT            | AWS output format                                 | json                 |
 | PUSHGATEWAY_HOST      | Pushgateway hostname                              | pushgateway:9091     |
-| PUSHGATEWAY_JOB       | Pushgateway job name                              | backup-files         |
+| PUSHGATEWAY_JOB       | Pushgateway job name                              | ${UPLOAD_BUCKET}     |
 | PUSHGATEWAY_LABEL     | Pushgateway label value                           | ${PUSHGATEWAY_JOB}   |
 
 ## Metrics
